@@ -784,7 +784,7 @@ struct dvec2 *baked_points_close;
 
 static struct wl_event_source *hide_source;
 static bool cursor_hidden = false;
-static bool tag_combo = false;
+static bool tag_combo = 0;
 
 static struct {
 	enum wp_cursor_shape_device_v1_shape shape;
@@ -3329,7 +3329,7 @@ void keypress(struct wl_listener *listener, void *data) {
 		for (i = 0; i < nsyms; i++)
 			handled = keybinding(mods, syms[i], keycode) || handled;
 	} else if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
-		tag_combo = false;
+		tag_combo = 0;
 	}
 
 	if (handled && group->wlr_group->keyboard.repeat_info.delay > 0) {

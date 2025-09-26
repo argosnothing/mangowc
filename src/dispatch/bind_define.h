@@ -1287,13 +1287,13 @@ void comboview(const Arg *arg) {
 	if (!newtags || !selmon)
 		return;
 
-	if (tag_combo)
+	if (!tag_combo)
 		target_tag |= newtags;
+		tag_combo = newtags & -newtags;;
 	else {
-		tag_combo = true;
 		target_tag = newtags;
 	}
-
+  selmon->pertag->curtag = ffs(tag_combo);
 	view(&(Arg){.ui = target_tag}, false);
 	printstatus();
 }
