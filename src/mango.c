@@ -1278,8 +1278,6 @@ void applyrules(Client *c) {
 			newtags |= r->tags;
 		} else if (parent) {
 			newtags = parent->tags;
-		} else {
-			newtags |= 0;
 		}
 
 		// set monitor of client
