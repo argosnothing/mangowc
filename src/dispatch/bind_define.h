@@ -810,7 +810,7 @@ int spawn_on_empty(const Arg *arg) {
 	return 0;
 }
 
-comboview_spawn_on_empty(const Arg *arg) {
+int comboview_spawn_on_empty(const Arg *arg) {
 	unsigned int newtags = arg->ui & TAGMASK;
 	bool is_empty = true;
 	Client *c = NULL;
