@@ -834,7 +834,10 @@ int comboview_spawn_on_empty(const Arg *arg) {
 		view(&(Arg){.ui = newtags}, false);
 	}
   if (is_empty) {
+    unsigned int old = selmon->tagset[selmon->seltags];
+    selmon->tagset[selmon->seltags] = newtags;
     spawn(arg);
+    selmon->tagset[selmon->seltags] = old;
   }
 
 	printstatus();
