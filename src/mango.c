@@ -104,6 +104,9 @@
 #define ISTILED(A)                                                             \
 	(A && !(A)->isfloating && !(A)->isminied && !(A)->iskilling &&             \
 	 !(A)->ismaximizescreen && !(A)->isfullscreen && !(A)->isunglobal)
+#define ISSCROLLTILED(A)                                                       \
+	(A && !(A)->isfloating && !(A)->isminied && !(A)->iskilling &&             \
+	 !(A)->isunglobal)
 #define VISIBLEON(C, M)                                                        \
 	((C) && (M) && (C)->mon == (M) && ((C)->tags & (M)->tagset[(M)->seltags]))
 #define LENGTH(X) (sizeof X / sizeof X[0])
@@ -481,6 +484,7 @@ struct Monitor {
 	int asleep;
 	unsigned int visible_clients;
 	unsigned int visible_tiling_clients;
+	unsigned int visible_scroll_tiling_clients;
 	bool has_visible_fullscreen_client;
 	struct wlr_scene_optimized_blur *blur;
 	char last_surface_ws_name[256];
@@ -934,6 +938,10 @@ void applybounds(Client *c, struct wlr_box *bbox) {
 
 /*清除全屏标志,还原全屏时清0的border*/
 void clear_fullscreen_flag(Client *c) {
+
+	if (is_scroller_layout(c->mon))
+		return;
+
 	if (c->isfullscreen) {
 		setfullscreen(c, false);
 	}
@@ -3160,7 +3168,6 @@ void focusclient(Client *c, int lift) {
 		if (c && selmon->prevsel &&
 			(selmon->prevsel->tags & selmon->tagset[selmon->seltags]) &&
 			(c->tags & selmon->tagset[selmon->seltags]) && !c->isfloating &&
-			!c->isfullscreen && !c->ismaximizescreen &&
 			is_scroller_layout(selmon)) {
 			arrange(selmon, false);
 		}
@@ -3718,7 +3725,7 @@ mapnotify(struct wl_listener *listener, void *data) {
 	else if (selmon && is_scroller_layout(selmon) &&
 			 selmon->visible_tiling_clients > 0) {
 
-		if (selmon->sel && ISTILED(selmon->sel) &&
+		if (selmon->sel && ISSCROLLTILED(selmon->sel) &&
 			VISIBLEON(selmon->sel, selmon)) {
 			at_client = selmon->sel;
 		} else {
@@ -4550,7 +4557,8 @@ void setmaximizescreen(Client *c, int maximizescreen) {
 		maximizescreen_box.width = c->mon->w.width - 2 * gappoh;
 		maximizescreen_box.height = c->mon->w.height - 2 * gappov;
 		wlr_scene_node_raise_to_top(&c->scene->node); // 将视图提升到顶层
-		resize(c, maximizescreen_box, 0);
+		if (!is_scroller_layout(c->mon))
+			resize(c, maximizescreen_box, 0);
 		c->ismaximizescreen = 1;
 	} else {
 		c->bw = c->isnoborder ? 0 : borderpx;
@@ -4607,7 +4615,8 @@ void setfullscreen(Client *c, int fullscreen) // 用自定义全屏代理自带�
 
 		c->bw = 0;
 		wlr_scene_node_raise_to_top(&c->scene->node); // 将视图提升到顶层
-		resize(c, c->mon->m, 1);
+		if (!is_scroller_layout(c->mon))
+			resize(c, c->mon->m, 1);
 		c->isfullscreen = 1;
 	} else {
 		c->bw = c->isnoborder ? 0 : borderpx;
