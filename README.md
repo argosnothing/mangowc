@@ -71,6 +71,8 @@ https://github.com/user-attachments/assets/014c893f-115c-4ae9-8342-f9ae3e9a0df0
 - hwdata
 - seatd
 - pcre2
+- xorg-xwayland
+- libxcb
 
 ## Arch Linux
 The package is in the Arch User Repository and is availble for manual download [here](https://aur.archlinux.org/packages/mangowc-git) or through a AUR helper like yay:
@@ -80,7 +82,6 @@ yay -S mangowc-git
 ```
 
 ## Gentoo Linux
-
 The package is in the community-maintained repository called GURU.
 First, add GURU repository:
 
@@ -98,6 +99,16 @@ Finally, install the package:
 emerge --ask --verbose gui-wm/mangowc
 ```
 
+## Fedora Linux
+The package is in the third-party Terra repository.
+First, add the [Terra Repository](https://terra.fyralabs.com/).
+
+Then, install the package:
+
+```bash
+dnf install mangowc
+```
+
 ## Other
 
 ```bash
@@ -106,7 +117,7 @@ cd wlroots
 meson build -Dprefix=/usr
 sudo ninja -C build install
 
-git clone https://github.com/wlrfx/scenefx.git
+git clone -b 0.4.1 https://github.com/wlrfx/scenefx.git
 cd scenefx
 meson build -Dprefix=/usr
 sudo ninja -C build install
@@ -170,7 +181,9 @@ git clone https://github.com/DreamMaoMao/mango-config.git ~/.config/mango
 
 ## Config Documentation
 
-Refer to the [wiki](https://github.com/DreamMaoMao/mango/wiki/)
+Refer to the repo wiki [wiki](https://github.com/DreamMaoMao/mango/wiki/)
+
+or the website docs [docs](https://mangowc.vercel.app/docs)
 
 # NixOS + Home-manager
 
@@ -189,7 +202,10 @@ Here's an example of using the modules in a flake:
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-parts.url = "github:hercules-ci/flake-parts";
-    mango.url = "github:DreamMaoMao/mango";
+    mango = {
+      url = "github:DreamMaoMao/mango";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
   outputs =
     inputs@{ self, flake-parts, ... }:
@@ -244,14 +260,6 @@ Here's an example of using the modules in a flake:
     };
 }
 ```
-
-
-# Sponsor
-
-My current device is a bit outdated and doesn't support certain features like HDR or VRR. If you'd like to support this project, here's how you can help. Thanks!
-
-![Screenshot_2025-10-13-20-06-49-26_ee1cec40dcf6eb3](https://github.com/user-attachments/assets/240a0727-9eb5-4212-a84c-10fa9f093147)
-
 
 # Packaging mango
 

@@ -19,7 +19,7 @@ void set_size_per(Monitor *m, Client *c) {
 }
 
 void resize_tile_master_horizontal(Client *grabc, bool isdrag, int offsetx,
-								   int offsety, unsigned int time, int type) {
+								   int offsety, uint32_t time, int type) {
 	Client *tc = NULL;
 	float delta_x, delta_y;
 	Client *next = NULL;
@@ -213,7 +213,7 @@ void resize_tile_master_horizontal(Client *grabc, bool isdrag, int offsetx,
 }
 
 void resize_tile_master_vertical(Client *grabc, bool isdrag, int offsetx,
-								 int offsety, unsigned int time, int type) {
+								 int offsety, uint32_t time, int type) {
 	Client *tc = NULL;
 	float delta_x, delta_y;
 	Client *next = NULL;
@@ -370,7 +370,7 @@ void resize_tile_master_vertical(Client *grabc, bool isdrag, int offsetx,
 }
 
 void resize_tile_scroller(Client *grabc, bool isdrag, int offsetx, int offsety,
-						  unsigned int time, bool isvertical) {
+						  uint32_t time, bool isvertical) {
 	float delta_x, delta_y;
 	float new_scroller_proportion;
 
@@ -474,7 +474,7 @@ void resize_tile_scroller(Client *grabc, bool isdrag, int offsetx, int offsety,
 }
 
 void resize_tile_client(Client *grabc, bool isdrag, int offsetx, int offsety,
-						unsigned int time) {
+						uint32_t time) {
 
 	if (!grabc || grabc->isfullscreen || grabc->ismaximizescreen)
 		return;
@@ -509,24 +509,22 @@ void reset_size_per_mon(Monitor *m, int tile_cilent_num,
 						int stack_num) {
 	Client *c = NULL;
 	int i = 0;
-	unsigned int stack_index = 0;
-	unsigned int nmasters = m->pertag->nmasters[m->pertag->curtag];
+	uint32_t stack_index = 0;
+	uint32_t nmasters = m->pertag->nmasters[m->pertag->curtag];
 
 	if (m->pertag->ltidxs[m->pertag->curtag]->id != CENTER_TILE) {
 
 		wl_list_for_each(c, &clients, link) {
 			if (VISIBLEON(c, m) && ISTILED(c)) {
-
-				if (total_master_inner_percent <= 0.0)
-					return;
-				if (i < m->pertag->nmasters[m->pertag->curtag]) {
+				if (total_master_inner_percent > 0.0 && i < nmasters) {
 					c->ismaster = true;
 					c->stack_innder_per = stack_num ? 1.0f / stack_num : 1.0f;
 					c->master_inner_per =
 						c->master_inner_per / total_master_inner_percent;
 				} else {
 					c->ismaster = false;
-					c->master_inner_per = 1.0f / master_num;
+					c->master_inner_per =
+						master_num > 0 ? 1.0f / master_num : 1.0f;
 					c->stack_innder_per =
 						total_stack_hight_percent
 							? c->stack_innder_per / total_stack_hight_percent
@@ -538,10 +536,7 @@ void reset_size_per_mon(Monitor *m, int tile_cilent_num,
 	} else {
 		wl_list_for_each(c, &clients, link) {
 			if (VISIBLEON(c, m) && ISTILED(c)) {
-
-				if (total_master_inner_percent <= 0.0)
-					return;
-				if (i < m->pertag->nmasters[m->pertag->curtag]) {
+				if (total_master_inner_percent > 0.0 && i < nmasters) {
 					c->ismaster = true;
 					if ((stack_index % 2) ^ (tile_cilent_num % 2 == 0)) {
 						c->stack_innder_per =
@@ -558,7 +553,8 @@ void reset_size_per_mon(Monitor *m, int tile_cilent_num,
 					stack_index = i - nmasters;
 
 					c->ismaster = false;
-					c->master_inner_per = 1.0f / master_num;
+					c->master_inner_per =
+						master_num > 0 ? 1.0f / master_num : 1.0f;
 					if ((stack_index % 2) ^ (tile_cilent_num % 2 == 0)) {
 						c->stack_innder_per =
 							total_right_stack_hight_percent
@@ -599,6 +595,7 @@ arrange(Monitor *m, bool want_animation) {
 		return;
 	m->visible_clients = 0;
 	m->visible_tiling_clients = 0;
+	m->visible_scroll_tiling_clients = 0;
 	m->has_visible_fullscreen_client = false;
 
 	wl_list_for_each(c, &clients, link) {
@@ -619,6 +616,10 @@ arrange(Monitor *m, bool want_animation) {
 			if (ISTILED(c)) {
 				m->visible_tiling_clients++;
 			}
+
+			if (ISSCROLLTILED(c)) {
+				m->visible_scroll_tiling_clients++;
+			}
 		}
 	}
 
@@ -632,7 +633,7 @@ arrange(Monitor *m, bool want_animation) {
 			if (VISIBLEON(c, m)) {
 				if (ISTILED(c)) {
 
-					if (i < m->pertag->nmasters[m->pertag->curtag]) {
+					if (i < nmasters) {
 						master_num++;
 						total_master_inner_percent += c->master_inner_per;
 					} else {

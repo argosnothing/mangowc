@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <libgen.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -52,7 +53,7 @@ typedef struct {
 typedef struct {
 	const char *id;
 	const char *title;
-	unsigned int tags;
+	uint32_t tags;
 	int isfloating;
 	int isfullscreen;
 	float scroller_proportion;
@@ -69,6 +70,7 @@ typedef struct {
 	int isunglobal;
 	int isglobal;
 	int isoverlay;
+	int allow_shortcuts_inhibit;
 	int ignore_maximize;
 	int ignore_minimize;
 	int isnosizehint;
@@ -89,6 +91,7 @@ typedef struct {
 	int noblur;
 	float focused_opacity;
 	float unfocused_opacity;
+	float scroller_proportion_single;
 	uint32_t passmod;
 	xkb_keysym_t keysym;
 	KeyBinding globalkeybinding;
@@ -122,29 +125,29 @@ KeyBinding default_key_bindings[] = {CHVT(1), CHVT(2),	CHVT(3),  CHVT(4),
 									 CHVT(9), CHVT(10), CHVT(11), CHVT(12)};
 
 typedef struct {
-	unsigned int mod;
-	unsigned int button;
+	uint32_t mod;
+	uint32_t button;
 	int (*func)(const Arg *);
 	Arg arg;
 } MouseBinding;
 
 typedef struct {
-	unsigned int mod;
-	unsigned int dir;
+	uint32_t mod;
+	uint32_t dir;
 	int (*func)(const Arg *);
 	Arg arg;
 } AxisBinding;
 
 typedef struct {
-	unsigned int fold;
+	uint32_t fold;
 	int (*func)(const Arg *);
 	Arg arg;
 } SwitchBinding;
 
 typedef struct {
-	unsigned int mod;
-	unsigned int motion;
-	unsigned int fingers_count;
+	uint32_t mod;
+	uint32_t motion;
+	uint32_t fingers_count;
 	int (*func)(const Arg *);
 	Arg arg;
 } GestureBinding;
@@ -208,7 +211,7 @@ typedef struct {
 	int snap_distance;
 	int enable_floating_snap;
 	int drag_tile_to_tile;
-	unsigned int swipe_min_threshold;
+	uint32_t swipe_min_threshold;
 	float focused_opacity;
 	float unfocused_opacity;
 	float *scroller_proportion_preset;
@@ -217,21 +220,21 @@ typedef struct {
 	char **circle_layout;
 	int circle_layout_count;
 
-	unsigned int new_is_master;
+	uint32_t new_is_master;
 	float default_mfact;
-	unsigned int default_nmaster;
+	uint32_t default_nmaster;
 	int center_master_overspread;
 	int center_when_single_stack;
 
-	unsigned int hotarea_size;
-	unsigned int enable_hotarea;
-	unsigned int ov_tab_mode;
+	uint32_t hotarea_size;
+	uint32_t enable_hotarea;
+	uint32_t ov_tab_mode;
 	int overviewgappi;
 	int overviewgappo;
-	unsigned int cursor_hide_timeout;
+	uint32_t cursor_hide_timeout;
 
-	unsigned int axis_bind_apply_timeout;
-	unsigned int focus_on_activate;
+	uint32_t axis_bind_apply_timeout;
+	uint32_t focus_on_activate;
 	int inhibit_regardless_of_visibility;
 	int sloppyfocus;
 	int warpcursor;
@@ -239,7 +242,7 @@ typedef struct {
 	/* keyboard */
 	int repeat_rate;
 	int repeat_delay;
-	unsigned int numlockon;
+	uint32_t numlockon;
 
 	/* Trackpad */
 	int disable_trackpad;
@@ -251,13 +254,13 @@ typedef struct {
 	int disable_while_typing;
 	int left_handed;
 	int middle_button_emulation;
-	unsigned int accel_profile;
+	uint32_t accel_profile;
 	double accel_speed;
-	unsigned int scroll_method;
-	unsigned int scroll_button;
-	unsigned int click_method;
-	unsigned int send_events_mode;
-	unsigned int button_map;
+	uint32_t scroll_method;
+	uint32_t scroll_button;
+	uint32_t click_method;
+	uint32_t send_events_mode;
+	uint32_t button_map;
 
 	int blur;
 	int blur_layer;
@@ -267,18 +270,18 @@ typedef struct {
 	int shadows;
 	int shadow_only_floating;
 	int layer_shadows;
-	unsigned int shadows_size;
+	uint32_t shadows_size;
 	float shadows_blur;
 	int shadows_position_x;
 	int shadows_position_y;
 	float shadowscolor[4];
 
 	int smartgaps;
-	unsigned int gappih;
-	unsigned int gappiv;
-	unsigned int gappoh;
-	unsigned int gappov;
-	unsigned int borderpx;
+	uint32_t gappih;
+	uint32_t gappiv;
+	uint32_t gappoh;
+	uint32_t gappov;
+	uint32_t borderpx;
 	float scratchpad_width_ratio;
 	float scratchpad_height_ratio;
 	float rootcolor[4];
@@ -329,13 +332,15 @@ typedef struct {
 	int exec_once_count;
 
 	char *cursor_theme;
-	unsigned int cursor_size;
+	uint32_t cursor_size;
 
 	int single_scratchpad;
 	int xwayland_persistence;
 	int syncobj_enable;
 	int adaptive_sync;
 	int allow_tearing;
+	int allow_shortcuts_inhibit;
+	int allow_lock_transparent;
 
 	struct xkb_rule_names xkb_rules;
 
@@ -513,61 +518,6 @@ long int parse_color(const char *hex_str) {
 		return -1;
 	}
 	return hex_num;
-}
-
-xkb_keysym_t normalize_keysym(xkb_keysym_t sym) {
-	// 首先转换为小写（主要影响字母键）
-	sym = xkb_keysym_to_lower(sym);
-
-	// 将数字小键盘键转换为普通数字键
-	switch (sym) {
-	// 小键盘数字转换
-	case XKB_KEY_KP_0:
-		return XKB_KEY_0;
-	case XKB_KEY_KP_1:
-		return XKB_KEY_1;
-	case XKB_KEY_KP_2:
-		return XKB_KEY_2;
-	case XKB_KEY_KP_3:
-		return XKB_KEY_3;
-	case XKB_KEY_KP_4:
-		return XKB_KEY_4;
-	case XKB_KEY_KP_5:
-		return XKB_KEY_5;
-	case XKB_KEY_KP_6:
-		return XKB_KEY_6;
-	case XKB_KEY_KP_7:
-		return XKB_KEY_7;
-	case XKB_KEY_KP_8:
-		return XKB_KEY_8;
-	case XKB_KEY_KP_9:
-		return XKB_KEY_9;
-
-	// 将 Shift+数字 的符号转换回基础数字
-	case XKB_KEY_exclam:
-		return XKB_KEY_1; // !
-	case XKB_KEY_at:
-		return XKB_KEY_2; // @
-	case XKB_KEY_numbersign:
-		return XKB_KEY_3; // #
-	case XKB_KEY_dollar:
-		return XKB_KEY_4; // $
-	case XKB_KEY_percent:
-		return XKB_KEY_5; // %
-	case XKB_KEY_asciicircum:
-		return XKB_KEY_6; // ^
-	case XKB_KEY_ampersand:
-		return XKB_KEY_7; // &
-	case XKB_KEY_asterisk:
-		return XKB_KEY_8; // *
-	case XKB_KEY_parenleft:
-		return XKB_KEY_9; // (
-	case XKB_KEY_parenright:
-		return XKB_KEY_0; // )
-
-	default:
-		return sym;
-	}
 }
 
 // 辅助函数：检查字符串是否以指定的前缀开头（忽略大小写）
@@ -840,7 +790,7 @@ void convert_hex_to_rgba(float *color, unsigned long int hex) {
 	color[3] = (hex & 0xFF) / 255.0f;
 }
 
-unsigned int parse_num_type(char *str) {
+uint32_t parse_num_type(char *str) {
 	switch (str[0]) {
 	case '-':
 		return NUM_TYPE_MINUS;
@@ -1043,7 +993,31 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 		(*arg).i = atoi(arg_value2);
 	} else if (strcmp(func_name, "view") == 0) {
 		func = bind_to_view;
-		(*arg).ui = 1 << (atoi(arg_value) - 1);
+
+		uint32_t mask = 0;
+		char *token;
+		char *arg_copy = strdup(arg_value);
+
+		if (arg_copy != NULL) {
+			char *saveptr = NULL;
+			token = strtok_r(arg_copy, "|", &saveptr);
+
+			while (token != NULL) {
+				int num = atoi(token);
+				if (num > 0 && num <= LENGTH(tags)) {
+					mask |= (1 << (num - 1));
+				}
+				token = strtok_r(NULL, "|", &saveptr);
+			}
+
+			free(arg_copy);
+		}
+
+		if (mask) {
+			(*arg).ui = mask;
+		} else {
+			(*arg).ui = atoi(arg_value);
+		}
 		(*arg).i = atoi(arg_value2);
 	} else if (strcmp(func_name, "viewcrossmon") == 0) {
 		func = viewcrossmon;
@@ -1275,6 +1249,10 @@ void parse_option(Config *config, char *key, char *value) {
 		config->adaptive_sync = atoi(value);
 	} else if (strcmp(key, "allow_tearing") == 0) {
 		config->allow_tearing = atoi(value);
+	} else if (strcmp(key, "allow_shortcuts_inhibit") == 0) {
+		config->allow_shortcuts_inhibit = atoi(value);
+	} else if (strcmp(key, "allow_lock_transparent") == 0) {
+		config->allow_lock_transparent = atoi(value);
 	} else if (strcmp(key, "no_border_when_single") == 0) {
 		config->no_border_when_single = atoi(value);
 	} else if (strcmp(key, "no_radius_when_single") == 0) {
@@ -1712,6 +1690,7 @@ void parse_option(Config *config, char *key, char *value) {
 		rule->isunglobal = -1;
 		rule->isglobal = -1;
 		rule->isoverlay = -1;
+		rule->allow_shortcuts_inhibit = -1;
 		rule->ignore_maximize = -1;
 		rule->ignore_minimize = -1;
 		rule->isnosizehint = -1;
@@ -1733,6 +1712,7 @@ void parse_option(Config *config, char *key, char *value) {
 		// float rule value, relay to a client property
 		rule->focused_opacity = 0;
 		rule->unfocused_opacity = 0;
+		rule->scroller_proportion_single = 0.0f;
 		rule->scroller_proportion = 0;
 
 		// special rule value,not directly set to client property
@@ -1804,12 +1784,16 @@ void parse_option(Config *config, char *key, char *value) {
 					rule->isunglobal = atoi(val);
 				} else if (strcmp(key, "isglobal") == 0) {
 					rule->isglobal = atoi(val);
+				} else if (strcmp(key, "scroller_proportion_single") == 0) {
+					rule->scroller_proportion_single = atof(val);
 				} else if (strcmp(key, "unfocused_opacity") == 0) {
 					rule->unfocused_opacity = atof(val);
 				} else if (strcmp(key, "focused_opacity") == 0) {
 					rule->focused_opacity = atof(val);
 				} else if (strcmp(key, "isoverlay") == 0) {
 					rule->isoverlay = atoi(val);
+				} else if (strcmp(key, "allow_shortcuts_inhibit") == 0) {
+					rule->allow_shortcuts_inhibit = atoi(val);
 				} else if (strcmp(key, "ignore_maximize") == 0) {
 					rule->ignore_maximize = atoi(val);
 				} else if (strcmp(key, "ignore_minimize") == 0) {
@@ -2322,35 +2306,55 @@ void parse_config_line(Config *config, const char *line) {
 
 void parse_config_file(Config *config, const char *file_path) {
 	FILE *file;
-	// 检查路径是否以 ~/ 开头
-	if (file_path[0] == '~' && (file_path[1] == '/' || file_path[1] == '\0')) {
+	char full_path[1024];
+
+	if (file_path[0] == '.' && file_path[1] == '/') {
+		// Relative path
+
+		if (cli_config_path) {
+			char *config_path = strdup(cli_config_path);
+			char *config_dir = dirname(config_path);
+			snprintf(full_path, sizeof(full_path), "%s/%s", config_dir,
+					 file_path + 1);
+			free(config_path);
+		} else {
+			const char *home = getenv("HOME");
+			if (!home) {
+				fprintf(stderr, "Error: HOME environment variable not set.\n");
+				return;
+			}
+			snprintf(full_path, sizeof(full_path), "%s/.config/mango/%s", home,
+					 file_path + 1);
+		}
+		file = fopen(full_path, "r");
+
+	} else if (file_path[0] == '~' &&
+			   (file_path[1] == '/' || file_path[1] == '\0')) {
+		// Home directory
+
 		const char *home = getenv("HOME");
 		if (!home) {
 			fprintf(stderr, "Error: HOME environment variable not set.\n");
 			return;
 		}
-
-		// 构建完整路径（家目录 + / + 原路径去掉 ~）
-		char full_path[1024];
 		snprintf(full_path, sizeof(full_path), "%s%s", home, file_path + 1);
-
 		file = fopen(full_path, "r");
-		if (!file) {
-			perror("Error opening file");
-			return;
-		}
+
 	} else {
+		// Absolute path
 		file = fopen(file_path, "r");
-		if (!file) {
-			perror("Error opening file");
-			return;
-		}
+	}
+
+	if (!file) {
+		perror("Error opening file");
+		return;
 	}
 
 	char line[512];
 	while (fgets(line, sizeof(line), file)) {
-		if (line[0] == '#' || line[0] == '\n')
+		if (line[0] == '#' || line[0] == '\n') {
 			continue;
+		}
 		parse_config_line(config, line);
 	}
 
@@ -2700,6 +2704,8 @@ void override_config(void) {
 	syncobj_enable = CLAMP_INT(config.syncobj_enable, 0, 1);
 	adaptive_sync = CLAMP_INT(config.adaptive_sync, 0, 1);
 	allow_tearing = CLAMP_INT(config.allow_tearing, 0, 2);
+	allow_shortcuts_inhibit = CLAMP_INT(config.allow_shortcuts_inhibit, 0, 1);
+	allow_lock_transparent = CLAMP_INT(config.allow_lock_transparent, 0, 1);
 	axis_bind_apply_timeout =
 		CLAMP_INT(config.axis_bind_apply_timeout, 0, 1000);
 	focus_on_activate = CLAMP_INT(config.focus_on_activate, 0, 1);
@@ -2877,6 +2883,8 @@ void set_value_default() {
 	config.syncobj_enable = syncobj_enable;
 	config.adaptive_sync = adaptive_sync;
 	config.allow_tearing = allow_tearing;
+	config.allow_shortcuts_inhibit = allow_shortcuts_inhibit;
+	config.allow_lock_transparent = allow_lock_transparent;
 	config.no_border_when_single = no_border_when_single;
 	config.no_radius_when_single = no_radius_when_single;
 	config.snap_distance = snap_distance;
@@ -3035,11 +3043,9 @@ void parse_config(void) {
 
 	create_config_keymap();
 
-	// 获取 MANGOCONFIG 环境变量
-	const char *mangoconfig = getenv("MANGOCONFIG");
-
-	// 如果 MANGOCONFIG 环境变量不存在或为空，则使用 HOME 环境变量
-	if (!mangoconfig || mangoconfig[0] == '\0') {
+	if (cli_config_path) {
+		snprintf(filename, sizeof(filename), "%s", cli_config_path);
+	} else {
 		// 获取当前用户家目录
 		const char *homedir = getenv("HOME");
 		if (!homedir) {
@@ -3056,9 +3062,6 @@ void parse_config(void) {
 			snprintf(filename, sizeof(filename), "%s/mango/config.conf",
 					 SYSCONFDIR);
 		}
-	} else {
-		// 使用 MANGOCONFIG 环境变量作为配置文件夹路径
-		snprintf(filename, sizeof(filename), "%s/config.conf", mangoconfig);
 	}
 
 	set_value_default();
@@ -3156,6 +3159,12 @@ void reapply_monitor_rules(void) {
 	}
 }
 
+void reapply_cursor_style(void) {
+	if (cursor_mgr)
+		wlr_xcursor_manager_destroy(cursor_mgr);
+	cursor_mgr = wlr_xcursor_manager_create(config.cursor_theme, cursor_size);
+}
+
 void reapply_border(void) {
 	Client *c = NULL;
 
@@ -3215,33 +3224,37 @@ void reapply_master(void) {
 	}
 }
 
+void parse_tagrule(Monitor *m) {
+	int i, jk;
+	ConfigTagRule tr;
+
+	for (i = 0; i < config.tag_rules_count; i++) {
+
+		tr = config.tag_rules[i];
+
+		if (config.tag_rules_count > 0 &&
+			(!tr.monitor_name ||
+			 regex_match(tr.monitor_name, m->wlr_output->name))) {
+
+			for (jk = 0; jk < LENGTH(layouts); jk++) {
+				if (tr.layout_name &&
+					strcmp(layouts[jk].name, tr.layout_name) == 0) {
+					m->pertag->ltidxs[tr.id] = &layouts[jk];
+				}
+			}
+
+			m->pertag->no_hide[tr.id] = tr.no_hide;
+		}
+	}
+}
+
 void reapply_tagrule(void) {
 	Monitor *m = NULL;
-	int i, jk;
-	char *rule_monitor_name = NULL;
 	wl_list_for_each(m, &mons, link) {
 		if (!m->wlr_output->enabled) {
 			continue;
 		}
-
-		// apply tag rule
-		for (i = 1; i <= config.tag_rules_count; i++) {
-			rule_monitor_name = config.tag_rules[i - 1].monitor_name;
-			if (regex_match(rule_monitor_name, m->wlr_output->name) ||
-				!rule_monitor_name) {
-				for (jk = 0; jk < LENGTH(layouts); jk++) {
-					if (config.tag_rules_count > 0 &&
-						config.tag_rules[i - 1].layout_name &&
-						strcmp(layouts[jk].name,
-							   config.tag_rules[i - 1].layout_name) == 0) {
-						m->pertag->ltidxs[config.tag_rules[i - 1].id] =
-							&layouts[jk];
-						m->pertag->no_hide[config.tag_rules[i - 1].id] =
-							config.tag_rules[i - 1].no_hide;
-					}
-				}
-			}
-		}
+		parse_tagrule(m);
 	}
 }
 
@@ -3253,6 +3266,7 @@ void reset_option(void) {
 	set_env();
 	run_exec();
 
+	reapply_cursor_style();
 	reapply_border();
 	reapply_keyboard();
 	reapply_pointer();

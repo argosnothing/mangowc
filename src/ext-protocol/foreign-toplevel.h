@@ -4,17 +4,17 @@ static struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager;
 
 void handle_foreign_activate_request(struct wl_listener *listener, void *data) {
 	Client *c = wl_container_of(listener, c, foreign_activate_request);
-	unsigned int target;
+	uint32_t target;
 
 	if (c && c->swallowing)
 		return;
 
-	if (c && !c->isminied && c == selmon->sel) {
+	if (c && !c->isminimized && c == selmon->sel) {
 		set_minimized(c);
 		return;
 	}
 
-	if (c->isminied) {
+	if (c->isminimized) {
 		c->is_in_scratchpad = 0;
 		c->isnamedscratchpad = 0;
 		c->is_scratchpad_show = 0;
